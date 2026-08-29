@@ -17,36 +17,51 @@ derive_clock_uncertainty
 #
 # ONLY intra-core paths are relaxed. Cross-boundary paths (CPU -> bus FSM,
 # BRAM, dtack) remain single-cycle constrained.
+#
+# NOTE: patterns are wildcarded either side of the instance name so that
+# wrapping an instance in a generate block does not silently void the
+# constraint. jt51 lives in "gen_jt51.u_ym" when GAME_MAGERROR=0; a bare
+# "emu|core|u_ym|*" pattern matched nothing and left its intra-core paths
+# under single-cycle analysis, failing setup by 2.647 ns.
 # --------------------------------------------------------------------------
 
 # fx68k main CPU: internal paths get 2 cycles
 set_multicycle_path -setup -end 2 \
-    -from [get_registers {emu|core|u_maincpu|*}] \
-    -to   [get_registers {emu|core|u_maincpu|*}]
+    -from [get_registers {emu|core|*u_maincpu|*}] \
+    -to   [get_registers {emu|core|*u_maincpu|*}]
 set_multicycle_path -hold -end 1 \
-    -from [get_registers {emu|core|u_maincpu|*}] \
-    -to   [get_registers {emu|core|u_maincpu|*}]
+    -from [get_registers {emu|core|*u_maincpu|*}] \
+    -to   [get_registers {emu|core|*u_maincpu|*}]
 
 # fx68k sub CPU: internal paths get 2 cycles
 set_multicycle_path -setup -end 2 \
-    -from [get_registers {emu|core|u_subcpu|*}] \
-    -to   [get_registers {emu|core|u_subcpu|*}]
+    -from [get_registers {emu|core|*u_subcpu|*}] \
+    -to   [get_registers {emu|core|*u_subcpu|*}]
 set_multicycle_path -hold -end 1 \
-    -from [get_registers {emu|core|u_subcpu|*}] \
-    -to   [get_registers {emu|core|u_subcpu|*}]
+    -from [get_registers {emu|core|*u_subcpu|*}] \
+    -to   [get_registers {emu|core|*u_subcpu|*}]
 
 # jt51 (YM2151): internal paths get 2 cycles (real budget is 20+)
 set_multicycle_path -setup -end 2 \
-    -from [get_registers {emu|core|u_ym|*}] \
-    -to   [get_registers {emu|core|u_ym|*}]
+    -from [get_registers {emu|core|*u_ym|*}] \
+    -to   [get_registers {emu|core|*u_ym|*}]
 set_multicycle_path -hold -end 1 \
-    -from [get_registers {emu|core|u_ym|*}] \
-    -to   [get_registers {emu|core|u_ym|*}]
+    -from [get_registers {emu|core|*u_ym|*}] \
+    -to   [get_registers {emu|core|*u_ym|*}]
 
 # jt6295 (OKI M6295): internal paths get 2 cycles (real budget is ~39)
 set_multicycle_path -setup -end 2 \
-    -from [get_registers {emu|core|u_oki|*}] \
-    -to   [get_registers {emu|core|u_oki|*}]
+    -from [get_registers {emu|core|*u_oki|*}] \
+    -to   [get_registers {emu|core|*u_oki|*}]
 set_multicycle_path -hold -end 1 \
-    -from [get_registers {emu|core|u_oki|*}] \
-    -to   [get_registers {emu|core|u_oki|*}]
+    -from [get_registers {emu|core|*u_oki|*}] \
+    -to   [get_registers {emu|core|*u_oki|*}]
+
+# IKAOPLL (YM2413, GAME_MAGERROR=1): internal paths get 2 cycles.
+# opll_cen is 3.579545 MHz -> ~22 sys clocks of real budget.
+set_multicycle_path -setup -end 2 \
+    -from [get_registers {emu|core|*u_opll|*}] \
+    -to   [get_registers {emu|core|*u_opll|*}]
+set_multicycle_path -hold -end 1 \
+    -from [get_registers {emu|core|*u_opll|*}] \
+    -to   [get_registers {emu|core|*u_opll|*}]

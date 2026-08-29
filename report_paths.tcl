@@ -1,4 +1,4 @@
-project_open Hyprduel
+project_open Arcade-Hyprduel
 create_timing_netlist
 read_sdc
 update_timing_netlist
