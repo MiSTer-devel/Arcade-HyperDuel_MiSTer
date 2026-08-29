@@ -212,15 +212,18 @@ naming) in `games/mame/`.
 ## Layout
 
 ```
-docs/       specs (i4220_spec.md, hyprduel_system_spec.md), ACCURACY.md,
-            plans and engineering handoffs
-reference/  vendored MAME sources (BSD-3-Clause, the behavioural oracle)
-rtl/        the core (i4220_*.sv, hyprduel_*.sv) + rtl/vendor/ cores
-mister/     MiSTer shell, Quartus 17 project, framework files
-sim/        Verilator harness: parity suites, full-system boot, soaks
-mra/        MRA definition
-tools/      ROM image builders, analysis tooling (tear scanner etc.)
-builds/     reference RBFs from the bring-up ladder
+Arcade-Hyprduel.*   Quartus 17 project (qpf/qsf/sdc/srf) and the MiSTer
+                    shell (Arcade-Hyprduel.sv)
+files.qip           Quartus file list, sourced by the qsf
+sys/                MiSTer framework
+rtl/                the core (i4220_*.sv, hyprduel_*.sv) + rtl/vendor/ cores
+releases/           released RBF + MRA files (_alternatives/ for alt sets)
+docs/               specs (i4220_spec.md, hyprduel_system_spec.md), ACCURACY.md,
+                    plans and engineering handoffs
+reference/          vendored MAME sources (BSD-3-Clause, the behavioural oracle)
+sim/                Verilator harness: parity suites, full-system boot, soaks
+tools/              ROM image builders, analysis tooling (tear scanner etc.)
+magerror_wip/       Magical Error build, held back (see its README)
 ```
 
 ## Building and verifying
@@ -229,7 +232,7 @@ builds/     reference RBFs from the bring-up ladder
   one-time oracle bootstrap (MAME 0.288 + Python 3 + your ROM set),
   then `make verify blit-verify render-verify mame-verify vdp-verify`
   runs the 22-check parity suite and `make boot` boots the game
-- Synthesis: Quartus 17 project under `mister/`; timing is gated on a
+- Synthesis: Quartus 17 project at the repo root; timing is gated on a
   clean setup summary (every clock non-negative) before any release
 
 ## License and credits

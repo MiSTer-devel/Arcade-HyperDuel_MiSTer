@@ -103,7 +103,7 @@ module tb_system;
   // +HSLOG: hiscore snoop verification. Prints game writes to the score
   // table region (sr3 words 0x1D951-0x1D971 = CPU 0xFFF2A2-0xFFF2E2;
   // word = byte[17:1] - 0x2000, bit 16 SET for this region) with
-  // the EXACT qualifying condition the Hyprduel.sv shadow snoop uses
+  // the EXACT qualifying condition the Arcade-Hyprduel.sv shadow snoop uses
   // (req && we && ack && in-range), plus a loose count (req && we &&
   // in-range, any cycle) to expose ack-timing misses.
   bit hslog_en;
@@ -855,7 +855,7 @@ module tb_system;
     $readmemh(gfxpath, gfxrom);
 
     if (use_sdram != 0) begin
-      // populate the SDRAM model at the mister/README.md byte map;
+      // populate the SDRAM model at the docs/quartus_project_notes.md byte map;
       // even byte address = word[15:8] (68000 lane convention)
       for (int i = 0; i < 262144; i++) begin
         u_sdr_model.mem_b[2*i]     = mainrom[i][15:8];

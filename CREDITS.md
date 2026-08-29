@@ -13,7 +13,7 @@ LICENSE). Local modifications to vendored cores are documented in
   video chip. GPL-3.0-or-later.
 - TEC442-A board glue (`rtl/hyprduel_sys.sv`), SDRAM controller
   (`rtl/hyprduel_sdram.sv`), BRAM wrappers, MiSTer shell
-  (`mister/Hyprduel.sv`), simulation and verification harness (`sim/`),
+  (`Arcade-Hyprduel.sv`), simulation and verification harness (`sim/`),
   tooling (`tools/`). GPL-3.0-or-later.
 
 ## Vendored cores (`rtl/vendor/`)
@@ -32,7 +32,7 @@ a packed-struct portability patch for Verilator, also documented there.
 If you enjoy this core, consider supporting Jose Tejada's FPGA work:
 https://www.patreon.com/jotego
 
-## MiSTer framework (`mister/sys/`)
+## MiSTer framework (`sys/`)
 
 The MiSTer template and framework files are copyright their respective
 authors (Sorgelig and MiSTer-devel contributors), GPL-2.0-or-later.

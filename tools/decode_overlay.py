@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Decode the forced-overlay telemetry rows from MiSTer screenshots.
 
-Reads the 4x7 hex font straight out of mister/Hyprduel.sv, samples each
+Reads the 4x7 hex font straight out of Arcade-Hyprduel.sv, samples each
 glyph dot at (ytop + fy*2, x0 + fx*4 + 1) on the native 320x224 PNG, and
 matches value chars 5-8 of each of the 9 rows (rows start at y = 32+20k).
 Rows that fail to match all four digits are reported as '----'.
@@ -25,7 +25,7 @@ import sys
 import numpy as np
 from PIL import Image
 
-SV = "/Users/leefoot/python_scripts/hyperduel-mister/mister/Hyprduel.sv"
+SV = "/Users/leefoot/python_scripts/hyperduel-mister/Arcade-Hyprduel.sv"
 ROWNAMES = ["b0", "b1", "dsw", "b2", "b3", "b4", "vbl", "tot", "fsm"]
 
 
