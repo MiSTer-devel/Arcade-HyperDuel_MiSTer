@@ -2,11 +2,16 @@
 
 Hyper Duel (Technosoft, 1993) for MiSTer.
 
+<img src="docs/images/title.png" width="49%" alt="Hyper Duel title screen"> <img src="docs/images/gameplay.png" width="49%" alt="Hyper Duel gameplay">
+
+*Screenshots taken on MiSTer with this core.*
+
 The core includes the first FPGA implementation of the **Imagetek I4220**
 video chip, used across the Metro Corp. arcade catalogue. There is no
 datasheet for the chip, so it was built against MAME and then checked
-against photos and recordings of real boards. [docs/ACCURACY.md](docs/ACCURACY.md)
-lists every claim, the evidence behind it and how to reproduce it.
+against photos and recordings of real boards. Each finding in
+[docs/ACCURACY.md](docs/ACCURACY.md) comes with its evidence and how to
+reproduce it.
 
 The CPUs and sound use established cores: two fx68k (Jorge Cwik),
 jt51 and jt6295 (Jose Tejada).
@@ -40,8 +45,8 @@ scandoubler options.
 
 ## Findings
 
-Checking the core against real boards turned up a few things that
-emulation gets wrong. Full detail is in [docs/ACCURACY.md](docs/ACCURACY.md).
+Where the core differs from MAME, and why. Full detail is in
+[docs/ACCURACY.md](docs/ACCURACY.md).
 
 - **Visible area.** The CRTC registers MAME ignores set the monitor's
   visible window. A real board shows lines 2 to 225 of the frame.
@@ -49,8 +54,8 @@ emulation gets wrong. Full detail is in [docs/ACCURACY.md](docs/ACCURACY.md).
   top-of-screen scroll glitch seen in emulation. Reported to MAME in
   [mamedev/mame#15732](https://github.com/mamedev/mame/issues/15732).
 - **Refresh rate.** The board runs 424 x 261 at 60.24 Hz, not 60 Hz.
-  Measured from recordings of two different boards by three separate
-  methods, and consistent with the game only programming 261 lines.
+  Measured from recordings of two boards, and matches the 261 lines
+  the game programs.
 - **OKI sample clock.** 2.000 MHz (the 4 MHz crystal halved), about
   3% lower than MAME's unverified value.
 - **Raster interrupts.** The game requests one on every line and the
@@ -93,12 +98,9 @@ magerror_wip/       Magical Error build, held back (see its README)
 
 ## License and credits
 
-GPL-3.0-or-later for the combined work; every vendored component keeps
-its own license and headers in place. See `LICENSE` and `CREDITS.md`,
-which credit the cores this project stands on - Jorge Cwik's fx68k,
-Jose Tejada's jt51 and jt6295, the MiSTer framework - and the reference
-material: MAME's Imagetek reverse engineering by Luca Elia, David
-Haywood, Angelo Salese and contributors, without which this core could
-not exist.
+GPL-3.0-or-later for the combined work. Vendored components keep their
+own licences and headers. See `LICENSE` and `CREDITS.md`. The I4220
+work relies on MAME's Imagetek driver by Luca Elia, David Haywood,
+Angelo Salese and others.
 
 Development used Anthropic's Claude as a coding tool.
