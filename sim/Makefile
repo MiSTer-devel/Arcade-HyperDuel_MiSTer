@@ -112,26 +112,47 @@ vdp-verify: $(BUILD)/obj_vdp/Vtb_vdp
 
 FX68K := ../rtl/vendor/fx68k
 
-$(BUILD)/obj_sys/Vtb_system: tb/tb_system.sv tb/sdram_model.sv ../rtl/hyprduel_sys.sv ../rtl/hyprduel_sdram.sv ../rtl/i4220_vdp.sv ../rtl/i4220_render.sv ../rtl/i4220_blitter.sv ../rtl/hd_dpram.sv ../rtl/hd_tdpram.sv $(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv
-	cp -f $(FX68K)/microrom.mem $(FX68K)/nanorom.mem .
-	$(VERILATOR) --binary --timing -Wno-fatal --timescale 1ns/1ps \
-		$(if $(PIXDIV12),+define+PIXDIV12) \
-		--Mdir $(BUILD)/obj_sys -I../rtl/vendor/jt51/hdl \
-		$(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv $(FX68K)/uaddrPla.sv \
+# ONE full-system model runs both games (docs/single_rbf.md): Hyper Duel
+# by default, Magical Error wo Sagase with +MAGERROR (the runtime game
+# select the MRA mod byte drives on hardware). Both sound chips (jt51 and
+# IKAOPLL) are always built in. Two pixel dividers are kept as separate
+# model dirs so switching never reuses a stale build:
+#   build/obj_sys    P_PIXDIV 16 (sim default, legacy Hyper Duel baselines)
+#   build/obj_sys12  P_PIXDIV 12 (hardware value; magerror runs use this)
+OPLL := ../rtl/vendor/ikaopll
+SYS_DEPS := tb/tb_system.sv tb/sdram_model.sv ../rtl/hyprduel_sys.sv ../rtl/hyprduel_sdram.sv ../rtl/i4220_vdp.sv ../rtl/i4220_render.sv ../rtl/i4220_blitter.sv ../rtl/hd_dpram.sv ../rtl/hd_tdpram.sv $(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv $(OPLL)/IKAOPLL.v
+SYS_SRCS = $(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv $(FX68K)/uaddrPla.sv \
 		$(wildcard ../rtl/vendor/jt51/hdl/jt51*.v) \
 		$(wildcard ../rtl/vendor/jt6295/hdl/*.v) \
+		$(OPLL)/IKAOPLL.v $(wildcard $(OPLL)/IKAOPLL_modules/*.v) \
 		../rtl/i4220_render.sv ../rtl/i4220_blitter.sv ../rtl/i4220_vdp.sv \
 		../rtl/hd_dpram.sv ../rtl/hd_tdpram.sv \
 		../rtl/hyprduel_sys.sv ../rtl/hyprduel_sdram.sv tb/sdram_model.sv \
-		tb/tb_system.sv --top-module tb_system
+		tb/tb_system.sv
+
+$(BUILD)/obj_sys/Vtb_system: $(SYS_DEPS)
+	cp -f $(FX68K)/microrom.mem $(FX68K)/nanorom.mem .
+	$(VERILATOR) --binary --timing -Wno-fatal --timescale 1ns/1ps \
+		--Mdir $(BUILD)/obj_sys -I../rtl/vendor/jt51/hdl \
+		$(SYS_SRCS) --top-module tb_system
+
+$(BUILD)/obj_sys12/Vtb_system: $(SYS_DEPS)
+	cp -f $(FX68K)/microrom.mem $(FX68K)/nanorom.mem .
+	$(VERILATOR) --binary --timing -Wno-fatal --timescale 1ns/1ps \
+		+define+PIXDIV12 \
+		--Mdir $(BUILD)/obj_sys12 -I../rtl/vendor/jt51/hdl \
+		$(SYS_SRCS) --top-module tb_system
+
+SYSMODEL := $(BUILD)/obj_sys$(if $(PIXDIV12),12)/Vtb_system
+SYSMODEL12 := $(BUILD)/obj_sys12/Vtb_system
 
 $(BUILD)/mame/mainrom.hex: ../tools/build_mainrom.py
 	python3 ../tools/build_mainrom.py ../roms/hyprduel.zip $@
 
 # full-system boot run (background-friendly): dumps PPMs into build/boot
-boot: $(BUILD)/obj_sys/Vtb_system $(BUILD)/mame/mainrom.hex
+boot: $(SYSMODEL) $(BUILD)/mame/mainrom.hex
 	mkdir -p $(BUILD)/boot$(if $(SDRAM),_sdram)
-	$(BUILD)/obj_sys/Vtb_system +MAINROM=$(BUILD)/mame/mainrom.hex \
+	$(SYSMODEL) +MAINROM=$(BUILD)/mame/mainrom.hex \
 		+GFXROM=$(BUILD)/mame/gfxrom.hex +GFXSIZE=4194304 \
 		+OKIROM=$(BUILD)/mame/okirom.hex \
 		+OUTDIR=$(BUILD)/boot$(if $(SDRAM),_sdram) \
@@ -176,29 +197,46 @@ $(BUILD)/obj_opll/Vtb_opll_smoke: tb/tb_opll_smoke.sv ../rtl/vendor/ikaopll/IKAO
 opll-smoke: $(BUILD)/obj_opll/Vtb_opll_smoke
 	$(BUILD)/obj_opll/Vtb_opll_smoke | grep OPLL
 
-# magerror full-system build (GAME_MAGERROR=1, includes IKAOPLL)
-OPLL := ../rtl/vendor/ikaopll
-$(BUILD)/obj_sys_me/Vtb_system: tb/tb_system.sv tb/sdram_model.sv ../rtl/hyprduel_sys.sv ../rtl/hyprduel_sdram.sv ../rtl/i4220_vdp.sv ../rtl/i4220_render.sv ../rtl/i4220_blitter.sv ../rtl/hd_dpram.sv ../rtl/hd_tdpram.sv $(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv $(OPLL)/IKAOPLL.v
-	cp -f $(FX68K)/microrom.mem $(FX68K)/nanorom.mem .
-	$(VERILATOR) --binary --timing -Wno-fatal --timescale 1ns/1ps \
-		$(if $(PIXDIV12),+define+PIXDIV12) \
-		+define+GAME_MAGERROR \
-		--Mdir $(BUILD)/obj_sys_me -I../rtl/vendor/jt51/hdl \
-		$(FX68K)/fx68k.sv $(FX68K)/fx68kAlu.sv $(FX68K)/uaddrPla.sv \
-		$(wildcard ../rtl/vendor/jt51/hdl/jt51*.v) \
-		$(wildcard ../rtl/vendor/jt6295/hdl/*.v) \
-		$(OPLL)/IKAOPLL.v $(wildcard $(OPLL)/IKAOPLL_modules/*.v) \
-		../rtl/i4220_render.sv ../rtl/i4220_blitter.sv ../rtl/i4220_vdp.sv \
-		../rtl/hd_dpram.sv ../rtl/hd_tdpram.sv \
-		../rtl/hyprduel_sys.sv ../rtl/hyprduel_sdram.sv tb/sdram_model.sv \
-		tb/tb_system.sv --top-module tb_system
+# magerror ROM images from ../roms/magerror.zip (local, gitignored)
+$(BUILD)/magerror_mainrom.hex: ../tools/build_mainrom.py
+	python3 ../tools/build_mainrom.py ../roms/magerror.zip $@
+$(BUILD)/magerror_gfxrom.hex: ../tools/build_gfxrom_magerror.py
+	python3 ../tools/build_gfxrom_magerror.py ../roms/magerror.zip $(BUILD)/magerror_gfxrom.bin
+	python3 -c "import pathlib; b=pathlib.Path('$(BUILD)/magerror_gfxrom.bin').read_bytes(); \
+pathlib.Path('$@').write_text('\n'.join('%02x'%x for x in b)+'\n')"
+$(BUILD)/magerror_okirom.hex:
+	python3 -c "import zipfile, pathlib; b=zipfile.ZipFile('../roms/magerror.zip').read('97.u97'); \
+pathlib.Path('$@').write_text('\n'.join('%02x'%x for x in b)+'\n')"
 
 .PHONY: boot-magerror
-boot-magerror: $(BUILD)/obj_sys_me/Vtb_system
+# same model as `boot`, run as magerror; always the hardware pixel divider
+boot-magerror: $(SYSMODEL12) $(BUILD)/magerror_mainrom.hex $(BUILD)/magerror_gfxrom.hex $(BUILD)/magerror_okirom.hex
 	mkdir -p $(BUILD)/boot_magerror$(if $(SDRAM),_sdram)
-	$(BUILD)/obj_sys_me/Vtb_system +MAINROM=$(BUILD)/magerror_mainrom.hex \
+	$(SYSMODEL12) +MAGERROR +MAINROM=$(BUILD)/magerror_mainrom.hex \
 		+GFXROM=$(BUILD)/magerror_gfxrom.hex +GFXSIZE=4194304 \
 		+OKIROM=$(BUILD)/magerror_okirom.hex \
 		+OUTDIR=$(BUILD)/boot_magerror$(if $(SDRAM),_sdram) \
 		+FRAMES=$(or $(FRAMES),600) +DUMPEVERY=30 \
+		$(if $(AUDIODUMP),+AUDIODUMP=$(AUDIODUMP)) \
+		$(if $(AUDIOSPLIT),+AUDIOSPLIT=$(AUDIOSPLIT)) \
 		$(if $(SDRAM),+SDRAM=$(SDRAM)) $(PLUSARGS)
+
+# magerror YM2413 write-path audit on a synthetic sub-CPU program (no
+# game ROM needed): counts CPU writes to 0x800000-3 vs writes IKAOPLL
+# accepts. docs/magerror_audio_fix.md
+YMT := $(BUILD)/ymtest
+$(YMT)/ymtest.bin: ymtest/ymtest.s
+	mkdir -p $(YMT)
+	m68k-elf-as -m68000 -o $(YMT)/ymtest.o ymtest/ymtest.s
+	m68k-elf-ld -Ttext=0 -e _start -o $(YMT)/ymtest.elf $(YMT)/ymtest.o
+	m68k-elf-objcopy -O binary $(YMT)/ymtest.elf $@
+
+.PHONY: ymtest
+ymtest: $(SYSMODEL12) $(YMT)/ymtest.bin
+	python3 ymtest/mkhex.py $(YMT)/ymtest.bin $(YMT)/main.hex $(YMT)/gfx.hex
+	$(SYSMODEL12) +MAGERROR +MAINROM=$(YMT)/main.hex \
+		+GFXROM=$(YMT)/gfx.hex +GFXSIZE=4194304 +OUTDIR=$(YMT) \
+		+FRAMES=$(or $(FRAMES),20) +DUMPEVERY=1000 \
+		+YMLOG=$(YMT)/ymlog.txt +AUDIOSPLIT=$(YMT)/aud \
+		+AUDIODUMP=$(YMT)/mix.raw +OPLLDUMP=$(YMT)/opll.raw $(PLUSARGS) | grep -E "YMAUDIT|frames simulated"
+	python3 ymtest/ymcheck.py $(YMT)/ymlog.txt

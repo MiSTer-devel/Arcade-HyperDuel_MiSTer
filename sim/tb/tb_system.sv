@@ -159,14 +159,14 @@ module tb_system;
         inp_pending = 1;
     end
   end
-`ifdef GAME_MAGERROR
-  localparam bit LP_MAGERROR = 1;
-`else
-  localparam bit LP_MAGERROR = 0;
-`endif
-  hyprduel_sys #(.GFX_AW(GFX_AW), .P_PIXDIV(PIXDIV),
-                 .GAME_MAGERROR(LP_MAGERROR)) dut (
+  // Game select (single model, docs/single_rbf.md): +MAGERROR runs the
+  // design as Magical Error wo Sagase (the shell's MRA mod byte = 1);
+  // default Hyper Duel. hyprduel_sys samples it while in reset.
+  logic tb_game_me;
+  initial tb_game_me = $test$plusargs("MAGERROR") ? 1'b1 : 1'b0;
+  hyprduel_sys #(.GFX_AW(GFX_AW), .P_PIXDIV(PIXDIV)) dut (
     .clk(clk), .rst_n(rst_n_sys),
+    .i_game_me(tb_game_me),
     .o_hs(hs), .o_vs(vs), .o_de(de), .o_ce_pix(ce_pix),
     .o_hblank(), .o_vblank(),
     .o_r(r5), .o_g(g5), .o_b(b5),
@@ -500,8 +500,13 @@ module tb_system;
   int         st_lidx;
   logic       s_iack_d, ym_irq_d;
   initial for (int i = 0; i < 256; i++) ym_ffirst[i] = -1;
+  // edge-counted: one count per write strobe regardless of how many sys
+  // clocks the chip-select is held (magerror stretches it for IKAOPLL;
+  // hyprduel's 1-clock pulse counts identically)
+  logic ym_wr_lvl_d;
+  always_ff @(posedge clk) ym_wr_lvl_d <= !dut.ym_cs_n && !dut.ym_wr_n;
   always_ff @(posedge clk) begin
-    if (!dut.ym_cs_n && !dut.ym_wr_n) begin
+    if (!dut.ym_cs_n && !dut.ym_wr_n && !ym_wr_lvl_d) begin
       ymwr_cnt <= ymwr_cnt + 1;
       if (!dut.ym_a0) begin
         last_ym_a0_0 <= dut.ym_din;
@@ -679,6 +684,78 @@ module tb_system;
     end
   end
 
+  // YM2413 write-acceptance audit (docs/magerror_audio_fix.md); the
+  // YMAUDIT summary line is printed only when +MAGERROR is set.
+  // CPU side: one event per sub-CPU write bus cycle to 0x800000-3.
+  // Chip side: rising edges of IKAOPLL's synchronised write requests,
+  // logged with the byte the chip actually latched. +YMLOG=<path>
+  // writes both streams ("C a0 data frame" / "A a0 data frame").
+  int   ymaud_cpu, ymaud_acc_a, ymaud_acc_d, ymaud_fh, ymaud_torn;
+  longint ymaud_stall;        // sys clocks a YM write waited on the guard
+  logic [7:0] ymaud_rise_v;   // latched byte at wrrq rise; must hold to fall
+  logic ymaud_cpu_d, ymaud_wa_d, ymaud_wd_d;
+  initial begin
+    string p;
+    ymaud_fh = 0;
+    if ($value$plusargs("YMLOG=%s", p)) ymaud_fh = $fopen(p, "w");
+  end
+  wire ymaud_cpu_lvl = dut.s_strobe && dut.s_sel_ym && !dut.s_rw && !dut.s_iack;
+  wire ymaud_wa = dut.u_opll.u_REG.addrreg_wrrq;
+  wire ymaud_wd = dut.u_opll.u_REG.datareg_wrrq;
+  always_ff @(posedge clk) begin
+    ymaud_cpu_d <= ymaud_cpu_lvl;
+    if (ymaud_cpu_lvl && dut.sbst == 2'd0 && dut.ym_hold)
+      ymaud_stall <= ymaud_stall + 1;
+    ymaud_wa_d  <= ymaud_wa;
+    ymaud_wd_d  <= ymaud_wd;
+    if (ymaud_cpu_lvl && !ymaud_cpu_d) begin
+      ymaud_cpu <= ymaud_cpu + 1;
+      if (ymaud_fh != 0)
+        $fdisplay(ymaud_fh, "C %0d %02x %0d %0t", dut.s_a[1], dut.s_dout[7:0], frames_seen, $time);
+    end
+    if ((ymaud_wa && !ymaud_wa_d) || (ymaud_wd && !ymaud_wd_d))
+      ymaud_rise_v <= dut.u_opll.u_REG.dbus_inlatch;
+    if (((!ymaud_wa && ymaud_wa_d) || (!ymaud_wd && ymaud_wd_d)) &&
+        dut.u_opll.u_REG.dbus_inlatch != ymaud_rise_v)
+      ymaud_torn <= ymaud_torn + 1;   // next write overwrote the latch early
+    if (ymaud_fh != 0 && ((!ymaud_wa && ymaud_wa_d) || (!ymaud_wd && ymaud_wd_d)))
+      $fdisplay(ymaud_fh, "F %0d %02x %0d %0t", ymaud_wd_d, dut.u_opll.u_REG.dbus_inlatch, frames_seen, $time);
+    if (ymaud_fh != 0 && !dut.ym_cs_n && !ym_wr_lvl_d)
+      $fdisplay(ymaud_fh, "K %0d %02x %0d %0t", dut.ym_a0, dut.ym_din, frames_seen, $time);
+    if (ymaud_wa && !ymaud_wa_d) begin
+      ymaud_acc_a <= ymaud_acc_a + 1;
+      if (ymaud_fh != 0)
+        $fdisplay(ymaud_fh, "A 0 %02x %0d %0t", dut.u_opll.u_REG.dbus_inlatch, frames_seen, $time);
+    end
+    if (ymaud_wd && !ymaud_wd_d) begin
+      ymaud_acc_d <= ymaud_acc_d + 1;
+      if (ymaud_fh != 0)
+        $fdisplay(ymaud_fh, "A 1 %02x %0d %0t", dut.u_opll.u_REG.dbus_inlatch, frames_seen, $time);
+    end
+  end
+  // +OPLLDUMP=<path>: IKAOPLL o_ACC_SIGNED at its own sample strobe
+  // (native clock/72 rate, s16le mono) for spectrum / MAME comparison
+  int   opll_fh;
+  logic opll_strb_d;
+  initial begin
+    string p;
+    opll_fh = 0;
+    if ($value$plusargs("OPLLDUMP=%s", p)) opll_fh = $fopen(p, "wb");
+  end
+  always_ff @(posedge clk) begin
+    opll_strb_d <= dut.opll_acc_strb;
+    if (opll_fh != 0 && dut.opll_acc_strb && !opll_strb_d)
+      $fwrite(opll_fh, "%c%c", dut.opll_acc_out[7:0],
+              dut.opll_acc_out[15:8]);
+  end
+  final begin
+    if (opll_fh != 0) $fclose(opll_fh);
+    if (tb_game_me) $display("YMAUDIT cpu_writes=%0d accepted=%0d (addr=%0d data=%0d) torn=%0d stall_clocks=%0d",
+             ymaud_cpu, ymaud_acc_a + ymaud_acc_d, ymaud_acc_a, ymaud_acc_d,
+             ymaud_torn, ymaud_stall);
+    if (ymaud_fh != 0) $fclose(ymaud_fh);
+  end
+
   // audio capture: +AUDIODUMP=<path> writes raw s16le mono at sys/2048
   // (~52 kHz); convert with sim/mame/raw_to_wav.py.
   // +AUDIOSPLIT=<prefix> additionally writes <prefix>_ym.raw and
@@ -697,7 +774,10 @@ module tb_system;
   logic signed [15:0] tap_ym, tap_oki;
   always_ff @(posedge clk) begin
     adiv <= adiv + 1'b1;
-    tap_ym  <= 16'((18'(dut.ym_xl) + 18'(dut.ym_xr)) >>> 1);
+    // active chip: jt51 (L+R)/2 for Hyper Duel, IKAOPLL ACC for magerror
+    // (the old magerror build fed ACC to both ym_xl and ym_xr)
+    tap_ym  <= dut.me ? dut.opll_acc_out
+                      : 16'((18'(dut.ym_xl) + 18'(dut.ym_xr)) >>> 1);
     tap_oki <= {dut.oki_snd, 2'b00};
     if (fh_audio != 0 && adiv == 0)
       $fwrite(fh_audio, "%c%c", dut.o_audio[7:0], dut.o_audio[15:8]);

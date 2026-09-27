@@ -1,6 +1,7 @@
 # Hyper Duel - MiSTer FPGA Core
 
 Hyper Duel (Technosoft, 1993) for MiSTer.
+It also runs Magical Error wo Sagase (1994), which uses the same hardware, from the same RBF.
 
 <img src="docs/images/title.png" width="49%" alt="Hyper Duel title screen"> <img src="docs/images/gameplay.png" width="49%" alt="Hyper Duel gameplay">
 
@@ -14,12 +15,15 @@ against photos and recordings of real boards. Each finding in
 reproduce it.
 
 The CPUs and sound use established cores: two fx68k (Jorge Cwik),
-jt51 and jt6295 (Jose Tejada).
+jt51 and jt6295 (Jose Tejada), and IKAOPLL (Sehyeon Kim) for Magical
+Error's YM2413.
 
 ## Features
 
 - Playable start to finish, tested on real hardware on a CRT
 - Hiscore autosave
+- Aspect ratio, integer scaling and 216p (5x) vertical crop options for
+  HDMI
 - Native 60.24 Hz video timing, with a 60 Hz option in the OSD for
   displays that need it
 - Shows the same 224 lines as a real cabinet, so the top-of-screen
@@ -32,7 +36,8 @@ and the MRA files to `/media/fat/_Arcade/`. Set 2 is in
 `releases/_alternatives/`.
 
 You need the MAME ROM sets (0.288 naming) in `/media/fat/games/mame/`:
-`hyprduel.zip`, plus `hyprduel2.zip` for Set 2. No ROM data is
+`hyprduel.zip`, plus `hyprduel2.zip` for Set 2 and `magerror.zip` for
+Magical Error. No ROM data is
 included in this repository.
 
 ## Controls and options
@@ -41,7 +46,8 @@ Buttons: Shot, Change, Bomb, Start, Coin, Service.
 
 OSD: DIP switches (coinage including Free Play, Demo Sounds,
 Difficulty, Lives, Flip Screen), video timing (Native 60.24 Hz or
-60 Hz), boot warning screen, hiscore autosave, and the standard
+60 Hz), aspect ratio, scale, vertical crop and crop offset, boot
+warning screen, hiscore autosave, and the standard
 scandoubler options.
 
 ## Findings
@@ -85,7 +91,6 @@ docs/               specs (i4220_spec.md, hyprduel_system_spec.md), ACCURACY.md,
 reference/          vendored MAME sources (BSD-3-Clause, the behavioural oracle)
 sim/                Verilator harness: parity suites, full-system boot, soaks
 tools/              ROM image builders, analysis tooling (tear scanner etc.)
-magerror_wip/       Magical Error build, held back (see its README)
 ```
 
 ## Building and verifying

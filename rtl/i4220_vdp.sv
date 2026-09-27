@@ -69,6 +69,11 @@ module i4220_vdp #(
     // displays that reject 60.24 Hz in sync-locked HDMI modes.
     input  logic i_compat60,
 
+    // Runtime IRQ line mask, ANDed with P_IRQ_LINE_MASK. The board glue
+    // picks it per game (Hyper Duel 0x02, Magical Error 0x01); tie to
+    // 8'hFF where the parameter alone should apply.
+    input  logic [7:0] i_irq_line_mask,
+
     // DEBUG: diagnostic flags for hardware bring-up
     output logic o_dbg_vdp_write,    // CPU ever wrote to VDP
     output logic o_dbg_line_start,   // line_start ever fired
@@ -231,7 +236,7 @@ module i4220_vdp #(
   logic [15:0] r_crtc_h, r_crtc_v;
   logic [15:0] blit_regs [7];
 
-  assign o_irq = |(r_irq_cause & ~r_irq_enable & P_IRQ_LINE_MASK);
+  assign o_irq = |(r_irq_cause & ~r_irq_enable & P_IRQ_LINE_MASK & i_irq_line_mask);
 
   // renderer register views
   logic [15:0] rs_window_x [3];

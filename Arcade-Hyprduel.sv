@@ -1,5 +1,7 @@
 //============================================================================
 //  Hyper Duel for MiSTer - framework shell (M4)
+//  One bitstream runs Hyper Duel and Magical Error wo Sagase; the MRA
+//  selects the game with a mod byte (docs/single_rbf.md).
 //
 //  Wraps rtl/hyprduel_sys.sv + rtl/hyprduel_sdram.sv in the MiSTer
 //  Template_MiSTer `emu` interface. Needs the template's sys/ framework
@@ -7,7 +9,7 @@
 //  complete and lint-clean, so the Quartus session is mechanical:
 //    - generate the PLL (pll.qip): outclk_0 = 80 MHz, outclk_1 = 80 MHz
 //      with -90 degree phase for SDRAM_CLK
-//    - add sys/, this file, rtl/*.sv and rtl/vendor/{fx68k,jt51,jt6295}
+//    - add sys/, this file, rtl/*.sv and rtl/vendor/{fx68k,jt51,jt6295,ikaopll}
 //    - unused template ports (UART, SD, DDRAM, ADC...) are tied off by
 //      the template's stub defaults
 //============================================================================
@@ -52,7 +54,11 @@ assign BUTTONS = 0;
   localparam CONF_STR = {
     "Hyprduel;;",
     "-;",
+    "H0O[11:10],Aspect Ratio,Original,Full Screen,[ARC1],[ARC2];",
     "O[5:3],Scandoubler Fx,None,HQ2x,CRT 25%,CRT 50%,CRT 75%;",
+    "H0O[13:12],Scale,Normal,V-Integer,Narrower HV-Integer,Wider HV-Integer;",
+    "d1O[14],Vertical Crop,Disabled,216p(5x);",
+    "d2O[18:15],Crop Offset,0,1,2,3,4,-4,-3,-2,-1;",
     "O[7],Video Timing,Native 60.24Hz,60Hz Compat;",
     "O[8],Boot Warning,Show,Skip;",
     "O[9],Autosave Hiscores,On,Off;",
@@ -73,6 +79,17 @@ assign BUTTONS = 0;
   wire        direct_video;
   wire [21:0] gamma_bus;
 
+  // aspect / integer scale / 1080p crop through the framework's video_freak.
+  // The visible picture is 224 lines; 216p crop gives an exact 5x on 1080p.
+  wire [1:0] ar    = status[11:10];
+  wire [1:0] scale = status[13:12];
+  wire       allow_vcrop = ~forced_scandoubler & (scale == 2'd0);
+  wire       vcrop_216   = allow_vcrop & status[14];
+  // offsets 0..4 then -4..-1, as a 5-bit two's complement for CROP_OFF
+  wire [4:0] crop_off = (status[18:15] < 4'd5) ? {1'b0, status[18:15]}
+                                                : ({1'b0, status[18:15]} + 5'd23);
+  wire       vga_de_mix;
+
   wire        ioctl_download;
   wire        ioctl_upload;
   wire        ioctl_upload_req;
@@ -90,7 +107,7 @@ assign BUTTONS = 0;
 
     .buttons(buttons),
     .status(status),
-    .status_menumask({15'd0, direct_video}),
+    .status_menumask({13'd0, vcrop_216, allow_vcrop, direct_video}),
     .forced_scandoubler(forced_scandoubler),
     .direct_video(direct_video),
 
@@ -118,6 +135,19 @@ assign BUTTONS = 0;
       if (ioctl_addr[0]) dsw[15:8] <= ioctl_dout;
       else               dsw[7:0]  <= ioctl_dout;
     end
+
+  // Game select: MRA mod byte, <rom index="1"><part>01</part></rom>
+  // (the usual MiSTer-devel arcade pattern). 0 or absent = Hyper Duel,
+  // 1 = Magical Error wo Sagase. The byte arrives as its own download,
+  // so reset is held while it changes; the core samples game_me only
+  // while in reset, making it static for the whole of play. An MRA with
+  // no index 1 part (the Hyper Duel MRAs) leaves the power-on 0.
+  reg [7:0] mod = 8'd0;
+  always @(posedge clk_sys)
+    if (ioctl_wr && ioctl_index[7:0] == 8'd1 && ioctl_addr == 27'd0)
+      mod <= ioctl_dout;
+  reg game_me = 1'b0;
+  always @(posedge clk_sys) game_me <= (mod == 8'd1);
 
   // ------------------------------------------------------------------
   // SDRAM: ioctl download writes the MRA stream at byte address 0
@@ -219,13 +249,8 @@ assign BUTTONS = 0;
   wire  [4:0] r5, g5, b5;
   wire signed [15:0] audio;
 
-`ifdef GAME_MAGERROR
-  localparam bit SHELL_MAGERROR = 1;
-`else
-  localparam bit SHELL_MAGERROR = 0;
-`endif
-  hyprduel_sys #(.GFX_AW(22), .P_PIXDIV(12),
-                 .GAME_MAGERROR(SHELL_MAGERROR)) core (
+  hyprduel_sys #(.GFX_AW(22), .P_PIXDIV(12)) core (
+    .i_game_me(game_me),
     .i_compat60(status[7]),
     .clk(clk_sys), .rst_n(~reset),
     .o_hs(hs), .o_vs(vs), .o_de(de), .o_ce_pix(ce_pix),
@@ -375,8 +400,6 @@ assign BUTTONS = 0;
   assign HDMI_BLACKOUT = 1'b0;
   assign HDMI_BOB_DEINT = 1'b0;
 
-  assign VIDEO_ARX = 13'd4;    // arcade 4:3 monitor
-  assign VIDEO_ARY = 13'd3;
 
   wire [23:0] vid_rgb = {r5, r5[4:2], g5, g5[4:2], b5, b5[4:2]};
 
@@ -389,7 +412,25 @@ assign BUTTONS = 0;
     .VBlank(vbl),
     .HSync(hs),
     .VSync(vs),
-    .fx(status[5:3])
+    .fx(status[5:3]),
+    .VGA_DE(vga_de_mix)
+  );
+
+  video_freak video_freak (
+    .CLK_VIDEO(CLK_VIDEO),
+    .CE_PIXEL(CE_PIXEL),
+    .VGA_VS(VGA_VS),
+    .HDMI_WIDTH(HDMI_WIDTH),
+    .HDMI_HEIGHT(HDMI_HEIGHT),
+    .VGA_DE(VGA_DE),
+    .VIDEO_ARX(VIDEO_ARX),
+    .VIDEO_ARY(VIDEO_ARY),
+    .VGA_DE_IN(vga_de_mix),
+    .ARX((ar == 2'd0) ? 12'd4 : {10'd0, ar - 2'd1}),
+    .ARY((ar == 2'd0) ? 12'd3 : 12'd0),
+    .CROP_SIZE(vcrop_216 ? 12'd216 : 12'd0),
+    .CROP_OFF(crop_off),
+    .SCALE({1'b0, scale})
   );
 
   // ------------------------------------------------------------------

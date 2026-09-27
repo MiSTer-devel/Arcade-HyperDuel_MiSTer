@@ -11,7 +11,7 @@ to `/media/fat/_Arcade/_alternatives/_Hyper Duel/`.
 
 | File | md5 | Notes |
 |------|-----|-------|
-| `Arcade-Hyprduel_20260719.rbf` | `87b6ee7d275b96c4b01a635fac204335` | Hyper Duel v1.0. Hiscore SDRAM-snoop address fix, verified saving on hardware. |
+| `Arcade-Hyprduel_20260927.rbf` | `61ffd24598df77d4a0ed8d1b3f068232` | One RBF for Hyper Duel and Magical Error (MRA mod byte). Magical Error YM2413 music fixed. HDMI video options (aspect, scale, 216p crop). |
 
 Every released RBF passed, in order: the full Verilator parity suite,
 the always-on integrity gates over a 2,200-frame SDRAM-model soak with
@@ -21,6 +21,7 @@ md5-verified deploy, and on-hardware verification on a CRT.
 
 ## Magical Error wo Sagase
 
-Not shipped here. The magerror build is held in `../magerror_wip/`
-pending a fix to its YM2413 music, which is silent on hardware (OKI
-M6295 sound effects play correctly). See `../magerror_wip/README.md`.
+`Magical Error wo Sagase.mra` runs on the same RBF as Hyper Duel. Its
+`<rom index="1">` mod byte (01) selects the game at load time; see
+`../docs/single_rbf.md`. It needs `magerror.zip` (MAME 0.288 naming).
+

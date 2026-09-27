@@ -20,9 +20,11 @@ derive_clock_uncertainty
 #
 # NOTE: patterns are wildcarded either side of the instance name so that
 # wrapping an instance in a generate block does not silently void the
-# constraint. jt51 lives in "gen_jt51.u_ym" when GAME_MAGERROR=0; a bare
-# "emu|core|u_ym|*" pattern matched nothing and left its intra-core paths
-# under single-cycle analysis, failing setup by 2.647 ns.
+# constraint. jt51 once lived in "gen_jt51.u_ym" (compile-time game
+# select); a bare "emu|core|u_ym|*" pattern matched nothing and left its
+# intra-core paths under single-cycle analysis, failing setup by 2.647 ns.
+# Since the single-RBF change both u_ym (jt51) and u_opll (IKAOPLL) are
+# always present, directly under emu|core; both constraints below apply.
 # --------------------------------------------------------------------------
 
 # fx68k main CPU: internal paths get 2 cycles
@@ -57,7 +59,7 @@ set_multicycle_path -hold -end 1 \
     -from [get_registers {emu|core|*u_oki|*}] \
     -to   [get_registers {emu|core|*u_oki|*}]
 
-# IKAOPLL (YM2413, GAME_MAGERROR=1): internal paths get 2 cycles.
+# IKAOPLL (YM2413, Magical Error): internal paths get 2 cycles.
 # opll_cen is 3.579545 MHz -> ~22 sys clocks of real budget.
 set_multicycle_path -setup -end 2 \
     -from [get_registers {emu|core|*u_opll|*}] \
@@ -65,3 +67,12 @@ set_multicycle_path -setup -end 2 \
 set_multicycle_path -hold -end 1 \
     -from [get_registers {emu|core|*u_opll|*}] \
     -to   [get_registers {emu|core|*u_opll|*}]
+
+# --------------------------------------------------------------------------
+# Runtime game select (docs/single_rbf.md). game_me_r in hyprduel_sys is
+# loaded from the MRA mod byte only while the core is held in reset (the
+# shell asserts reset for every download), so it is static for millions
+# of clocks before any path it feeds is used. Its fan-out (address
+# decodes, sound strobes, IRQ routing, mix) needs no single-cycle check.
+# --------------------------------------------------------------------------
+set_false_path -from [get_registers {emu|core|*game_me_r}]

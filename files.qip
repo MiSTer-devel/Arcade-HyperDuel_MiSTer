@@ -32,8 +32,8 @@ set_global_assignment -name VERILOG_FILE rtl/vendor/jt6295/hdl/jt6295_serial.v
 set_global_assignment -name VERILOG_FILE rtl/vendor/jt6295/hdl/jt6295_sh_rst.v
 set_global_assignment -name SEARCH_PATH rtl/vendor/jt6295/hdl
 
-# IKAOPLL (YM2413, used by magerror; compiled but unused when GAME_MAGERROR=0
-# since the generate block is dead-code-eliminated)
+# IKAOPLL (YM2413, Magical Error wo Sagase). Always instantiated next to
+# jt51; the MRA mod byte picks which one is live (docs/single_rbf.md)
 set_global_assignment -name VERILOG_FILE rtl/vendor/ikaopll/IKAOPLL.v
 set_global_assignment -name VERILOG_FILE rtl/vendor/ikaopll/IKAOPLL_modules/IKAOPLL_dac.v
 set_global_assignment -name VERILOG_FILE rtl/vendor/ikaopll/IKAOPLL_modules/IKAOPLL_eg.v

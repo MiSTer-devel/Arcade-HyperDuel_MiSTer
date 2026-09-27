@@ -1,5 +1,7 @@
 <!--
-  Magical Error wo Sagase for the hyprduel MiSTer core (magerror build).
+  Magical Error wo Sagase for the hyprduel MiSTer core. Same bitstream
+  as Hyper Duel: the <rom index="1"> mod byte 01 selects this game
+  (docs/single_rbf.md). Without it the core runs Hyper Duel.
 
   ROM layout delivered to the core (identical byte offsets to Hyper Duel):
     0x000000 - 0x07FFFF  main 68000 program (2x 256KB byte-interleaved,
@@ -11,9 +13,7 @@
 <misterromdescription>
     <name>Magical Error wo Sagase</name>
     <setname>magerror</setname>
-    <rbf>magerror</rbf>
-    <!-- RBF filename on the SD card: cores/magerror.rbf or
-         cores/magerror_YYYYMMDD.rbf (downloader convention) -->
+    <rbf>hyprduel</rbf>
     <mameversion>0288</mameversion>
     <year>1994</year>
     <manufacturer>Technosoft / Jaleco</manufacturer>
@@ -37,6 +37,11 @@
 
     <buttons names="Button 1,Button 2,Button 3,Start,Coin,Service"
              default="A,B,X,Start,Select,L"/>
+
+    <!-- game select mod byte: 01 = Magical Error wo Sagase -->
+    <rom index="1">
+        <part>01</part>
+    </rom>
 
     <rom index="0" zip="magerror.zip" type="merged">
         <!-- main 68000 program -->
