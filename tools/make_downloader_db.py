@@ -10,7 +10,7 @@ Writes hyperduel_db.json at the repo root. Users consume it by adding
 to /media/fat/downloader.ini:
 
     [searchsolved/hyperduel]
-    db_url = https://raw.githubusercontent.com/searchsolved/Arcade_HyperDuel_MiSTer/main/hyperduel_db.json
+    db_url = https://raw.githubusercontent.com/searchsolved/Arcade-HyperDuel_MiSTer/main/hyperduel_db.json
 
 The db_id must equal the ini section name (lowercased); file URLs point
 at the immutable GitHub release assets, so the raw db on main can be
@@ -26,7 +26,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 DB_ID = "searchsolved/hyperduel"
 RELEASE_TAG = "v1.1"
 RELEASE_BASE = (
-    "https://github.com/searchsolved/Arcade_HyperDuel_MiSTer/releases/download/"
+    "https://github.com/searchsolved/Arcade-HyperDuel_MiSTer/releases/download/"
     + RELEASE_TAG + "/"
 )
 
