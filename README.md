@@ -22,7 +22,8 @@ jt51 and jt6295 (Jose Tejada).
 - Hiscore autosave
 - Native 60.24 Hz video timing, with a 60 Hz option in the OSD for
   displays that need it
-- The same visible picture area as the original monitor (see below)
+- Shows the same 224 lines as a real cabinet, so the top-of-screen
+  glitch seen in MAME is gone
 
 ## Install
 
